@@ -63,6 +63,56 @@ spec:
           envFrom:
             - configMapRef:
                 name: pi-llm-config
+          env:
+            - name: LLAMA_ARG_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: pi-llm-config
+                  key: MODEL_PATH
+            - name: LLAMA_ARG_CTX_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: pi-llm-config
+                  key: CTX_SIZE
+            - name: LLAMA_ARG_THREADS
+              valueFrom:
+                configMapKeyRef:
+                  name: pi-llm-config
+                  key: THREADS
+            - name: LLAMA_ARG_THREADS_BATCH
+              valueFrom:
+                configMapKeyRef:
+                  name: pi-llm-config
+                  key: THREADS_BATCH
+            - name: LLAMA_ARG_BATCH_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: pi-llm-config
+                  key: BATCH_SIZE
+            - name: LLAMA_ARG_UBATCH_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: pi-llm-config
+                  key: UBATCH_SIZE
+            - name: LLAMA_ARG_PARALLEL
+              valueFrom:
+                configMapKeyRef:
+                  name: pi-llm-config
+                  key: PARALLEL
+            - name: LLAMA_ARG_CACHE_TYPE_K
+              valueFrom:
+                configMapKeyRef:
+                  name: pi-llm-config
+                  key: CACHE_TYPE_K
+            - name: LLAMA_ARG_CACHE_TYPE_V
+              valueFrom:
+                configMapKeyRef:
+                  name: pi-llm-config
+                  key: CACHE_TYPE_V
+            - name: LLAMA_ARG_HOST
+              value: 0.0.0.0
+            - name: LLAMA_ARG_PORT
+              value: "8080"
           ports:
             - name: http
               containerPort: 8080
@@ -84,7 +134,7 @@ spec:
               path: /health
               port: http
             periodSeconds: 10
-            failureThreshold: 30
+            failureThreshold: 60
             timeoutSeconds: 5
           readinessProbe:
             httpGet:
