@@ -25,7 +25,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: llama-server
-          image: ghcr.io/kdvops/pi-llm:1.0.0
+          image: ghcr.io/ggml-org/llama.cpp:server
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
