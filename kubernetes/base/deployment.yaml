@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pi-llm
+  namespace: local-ai
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: pi-llm
+  template:
+    metadata:
+      labels:
+        app: pi-llm
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: llama-server
+          image: ghcr.io/kdvops/pi-llm:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: pi-llm-config
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "2"
+              memory: 1800Mi
+            limits:
+              cpu: "4"
+              memory: 3500Mi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: pi-llm-models
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi

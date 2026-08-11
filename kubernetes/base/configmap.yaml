@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pi-llm-config
+  namespace: local-ai
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  MODEL_PATH: /models/Qwen3.5-2B-UD-Q4_K_XL.gguf
+  MODEL_URL: https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-UD-Q4_K_XL.gguf
+  CTX_SIZE: "4096"
+  THREADS: "4"
+  THREADS_BATCH: "4"
+  BATCH_SIZE: "256"
+  UBATCH_SIZE: "128"
+  PARALLEL: "1"
+  CACHE_TYPE_K: "q8_0"
+  CACHE_TYPE_V: "q8_0"

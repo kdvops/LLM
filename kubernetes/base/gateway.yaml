@@ -1,0 +1,17 @@
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: pi-llm
+  namespace: local-ai
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  selector:
+    istio: kdvops-gateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - llm.kdvops.local

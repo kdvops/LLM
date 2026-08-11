@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pi-llm
+  namespace: local-ai
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  type: ClusterIP
+  selector:
+    app: pi-llm
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP

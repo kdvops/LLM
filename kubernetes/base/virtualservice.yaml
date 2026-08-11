@@ -1,0 +1,19 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: pi-llm
+  namespace: local-ai
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  hosts:
+    - llm.kdvops.local
+  gateways:
+    - pi-llm
+  http:
+    - route:
+        - destination:
+            host: pi-llm.local-ai.svc.cluster.local
+            port:
+              number: 8080
+      timeout: 300s

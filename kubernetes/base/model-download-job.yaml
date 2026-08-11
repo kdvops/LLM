@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pi-llm-model-download
+  namespace: local-ai
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: downloader
+          image: curlimages/curl:8.10.1
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -eu
+              FILE="${MODEL_PATH:-/models/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
+              URL="${MODEL_URL:-https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
+              if [ -s "$FILE" ]; then
+                echo "Model already exists: $FILE"
+                exit 0
+              fi
+              tmp="${FILE}.part"
+              rm -f "$tmp"
+              curl -L --fail --retry 5 --retry-delay 3 --retry-all-errors                     -o "$tmp" "$URL"
+              mv "$tmp" "$FILE"
+          envFrom:
+            - configMapRef:
+                name: pi-llm-config
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: pi-llm-models
