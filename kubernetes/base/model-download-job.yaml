@@ -35,6 +35,10 @@ spec:
                 -C - \
                 -o "$tmp" "$URL"
               mv "$tmp" "$FILE"
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
           envFrom:
             - configMapRef:
                 name: pi-llm-config
