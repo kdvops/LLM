@@ -23,6 +23,8 @@ spec:
       securityContext:
         fsGroup: 10001
         fsGroupChangePolicy: OnRootMismatch
+      imagePullSecrets:
+        - name: regcred
       initContainers:
         - name: model-download
           image: curlimages/curl:8.10.1
@@ -58,61 +60,11 @@ spec:
               mountPath: /models
       containers:
         - name: llama-server
-          image: ghcr.io/ggml-org/llama.cpp:server
+          image: ghcr.io/kdvops/pi-llm:1.0.0
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
                 name: pi-llm-config
-          env:
-            - name: LLAMA_ARG_MODEL
-              valueFrom:
-                configMapKeyRef:
-                  name: pi-llm-config
-                  key: MODEL_PATH
-            - name: LLAMA_ARG_CTX_SIZE
-              valueFrom:
-                configMapKeyRef:
-                  name: pi-llm-config
-                  key: CTX_SIZE
-            - name: LLAMA_ARG_THREADS
-              valueFrom:
-                configMapKeyRef:
-                  name: pi-llm-config
-                  key: THREADS
-            - name: LLAMA_ARG_THREADS_BATCH
-              valueFrom:
-                configMapKeyRef:
-                  name: pi-llm-config
-                  key: THREADS_BATCH
-            - name: LLAMA_ARG_BATCH_SIZE
-              valueFrom:
-                configMapKeyRef:
-                  name: pi-llm-config
-                  key: BATCH_SIZE
-            - name: LLAMA_ARG_UBATCH_SIZE
-              valueFrom:
-                configMapKeyRef:
-                  name: pi-llm-config
-                  key: UBATCH_SIZE
-            - name: LLAMA_ARG_PARALLEL
-              valueFrom:
-                configMapKeyRef:
-                  name: pi-llm-config
-                  key: PARALLEL
-            - name: LLAMA_ARG_CACHE_TYPE_K
-              valueFrom:
-                configMapKeyRef:
-                  name: pi-llm-config
-                  key: CACHE_TYPE_K
-            - name: LLAMA_ARG_CACHE_TYPE_V
-              valueFrom:
-                configMapKeyRef:
-                  name: pi-llm-config
-                  key: CACHE_TYPE_V
-            - name: LLAMA_ARG_HOST
-              value: 0.0.0.0
-            - name: LLAMA_ARG_PORT
-              value: "8080"
           ports:
             - name: http
               containerPort: 8080
