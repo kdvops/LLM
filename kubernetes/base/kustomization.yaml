@@ -4,7 +4,6 @@ resources:
   - namespace.yaml
   - pvc.yaml
   - configmap.yaml
-  - model-download-job.yaml
   - deployment.yaml
   - service.yaml
   - gateway.yaml

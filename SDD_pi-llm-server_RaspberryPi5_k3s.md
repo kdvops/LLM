@@ -246,44 +246,45 @@ data:
 ```
 
 
-## 12. Job de descarga del modelo
+## 12. Descarga del modelo
+
+La descarga del modelo se ejecuta como `initContainer` dentro del `Deployment` para evitar conflictos de `ReadWriteOnce` con el PVC.
 
 ```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: pi-llm-model-download
-  namespace: local-ai
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
-spec:
-  template:
-    spec:
-      restartPolicy: OnFailure
-      containers:
-        - name: downloader
-          image: curlimages/curl:latest
-          command: ["sh", "-c"]
-          args:
-            - |
-              set -e
-              FILE=/models/Qwen3.5-2B-UD-Q4_K_XL.gguf
-              if [ -f "$FILE" ]; then
-                echo "Model already exists."
-                exit 0
-              fi
-              curl -L --fail --retry 5 \
-                -o "$FILE" \
-                https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-UD-Q4_K_XL.gguf
-          volumeMounts:
-            - name: models
-              mountPath: /models
-      volumes:
-        - name: models
-          persistentVolumeClaim:
-            claimName: pi-llm-models
+initContainers:
+  - name: model-download
+    image: curlimages/curl:8.10.1
+    imagePullPolicy: IfNotPresent
+    command: ["sh", "-c"]
+    args:
+      - |
+        set -eu
+        FILE="${MODEL_PATH:-/models/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
+        URL="${MODEL_URL:-https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
+        if [ -s "$FILE" ]; then
+          echo "Model already exists: $FILE"
+          exit 0
+        fi
+        tmp="${FILE}.part"
+        mkdir -p "$(dirname "$tmp")"
+        touch "$tmp"
+        curl -L --fail --retry 20 --retry-delay 10 --retry-all-errors \
+          --connect-timeout 30 \
+          --speed-limit 1024 --speed-time 120 \
+          -C - \
+          -o "$tmp" "$URL"
+        mv "$tmp" "$FILE"
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsUser: 0
+      runAsGroup: 0
+    envFrom:
+      - configMapRef:
+          name: pi-llm-config
+    volumeMounts:
+      - name: models
+        mountPath: /models
 ```
-
 
 ## 13. Deployment
 
@@ -310,9 +311,45 @@ spec:
         sidecar.istio.io/inject: "false"
     spec:
       terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: model-download
+          image: curlimages/curl:8.10.1
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -eu
+              FILE="${MODEL_PATH:-/models/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
+              URL="${MODEL_URL:-https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
+              if [ -s "$FILE" ]; then
+                echo "Model already exists: $FILE"
+                exit 0
+              fi
+              tmp="${FILE}.part"
+              mkdir -p "$(dirname "$tmp")"
+              touch "$tmp"
+              curl -L --fail --retry 20 --retry-delay 10 --retry-all-errors \
+                --connect-timeout 30 \
+                --speed-limit 1024 --speed-time 120 \
+                -C - \
+                -o "$tmp" "$URL"
+              mv "$tmp" "$FILE"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 0
+            runAsGroup: 0
+          envFrom:
+            - configMapRef:
+                name: pi-llm-config
+          volumeMounts:
+            - name: models
+              mountPath: /models
       containers:
         - name: llama-server
-          image: ghcr.io/kdvops/pi-llm:1.0.0
+          image: ghcr.io/ggml-org/llama.cpp:server
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
@@ -323,7 +360,7 @@ spec:
               protocol: TCP
           resources:
             requests:
-              cpu: "2"
+              cpu: "500m"
               memory: 1800Mi
             limits:
               cpu: "4"
