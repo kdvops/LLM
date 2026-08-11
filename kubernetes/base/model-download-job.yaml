@@ -5,8 +5,9 @@ metadata:
   namespace: local-ai
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: Replace=true
 spec:
-  backoffLimit: 3
+  backoffLimit: 6
   ttlSecondsAfterFinished: 300
   template:
     spec:
@@ -26,8 +27,13 @@ spec:
                 exit 0
               fi
               tmp="${FILE}.part"
-              rm -f "$tmp"
-              curl -L --fail --retry 5 --retry-delay 3 --retry-all-errors                     -o "$tmp" "$URL"
+              mkdir -p "$(dirname "$tmp")"
+              touch "$tmp"
+              curl -L --fail --retry 20 --retry-delay 10 --retry-all-errors \
+                --connect-timeout 30 \
+                --speed-limit 1024 --speed-time 120 \
+                -C - \
+                -o "$tmp" "$URL"
               mv "$tmp" "$FILE"
           envFrom:
             - configMapRef:
