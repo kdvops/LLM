@@ -9,7 +9,8 @@ spec:
   hosts:
     - llm.kdvops.com
   gateways:
-    - pi-llm
+    - istio-system/kdvops-gateway
+#    - pi-llm
   http:
     - route:
         - destination:
