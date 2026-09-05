@@ -3,6 +3,8 @@
 **LLM local optimizado para Raspberry Pi 5 (8 GB) sobre k3s/Kubernetes, Longhorn, Istio y Argo CD**
 
 
+> Estado actual: el Deployment usa la imagen oficial de llama.cpp y descarga con initContainer. Los ejemplos de imagen personalizada y Gateway dedicado son referencias de diseño; los manifiestos de kubernetes/base y el README describen la ruta activa mediante istio-system/kdvops-gateway. Los límites de memoria se conservan hasta medir el modelo en el nodo.
+
 ## 1. Objetivo
 
 Diseñar y desplegar un servicio de inferencia LLM local, ligero y reproducible para una Raspberry Pi 5 ARM64 con 8 GB de RAM, ejecutado en k3s/Kubernetes y administrado con GitOps mediante Argo CD.
@@ -22,8 +24,8 @@ El servicio debe:
 ## 2. Decisión de modelo
 
 Baseline recomendado:
-- Repositorio: unsloth/Qwen3.5-2B-GGUF
-- Cuantización: UD-Q4_K_XL
+- Repositorio: Qwen/Qwen2.5-Coder-3B-Instruct-GGUF
+- Cuantización: Q4_K_M
 - Formato: GGUF
 - Runtime: llama.cpp
 - Arquitectura: linux/arm64
@@ -32,7 +34,7 @@ Baseline recomendado:
 - Threads: 4
 
 Justificación:
-Qwen3.5-2B ofrece un compromiso adecuado entre calidad, tamaño, velocidad y consumo de memoria para una Raspberry Pi 5 de 8 GB. La cuantización Q4 reduce el tamaño del modelo y llama.cpp permite memory mapping del archivo GGUF para evitar una copia completa adicional del modelo en memoria.
+Qwen2.5-Coder-3B-Instruct Q4_K_M es el candidato inicial para programación local; su latencia y consumo deben validarse en la Raspberry Pi con las demás cargas activas. La cuantización Q4 reduce el tamaño del modelo y llama.cpp permite memory mapping del archivo GGUF para evitar una copia completa adicional del modelo en memoria.
 
 
 ## 3. Requisitos funcionales
@@ -41,7 +43,7 @@ FR-001. El servicio debe exponer /v1/chat/completions mediante HTTP.
 FR-002. El servicio debe ser compatible con clientes que esperen una API estilo OpenAI.
 FR-003. El modelo debe persistir en un PVC Longhorn.
 FR-004. El Pod debe reutilizar el modelo existente después de reinicios.
-FR-005. El modelo debe descargarse mediante un Job separado del Deployment.
+FR-005. El modelo debe descargarse mediante un initContainer del Deployment antes de iniciar el servidor.
 FR-006. Argo CD debe gestionar los manifiestos declarativamente.
 FR-007. Istio debe publicar el servicio mediante Gateway + VirtualService.
 FR-008. El Service de Kubernetes debe ser ClusterIP.
@@ -58,7 +60,7 @@ NFR-004. mmap debe permanecer habilitado.
 NFR-005. mlock debe permanecer deshabilitado.
 NFR-006. El límite inicial de memoria del Pod será 3500Mi.
 NFR-007. El request inicial de memoria será 1800Mi.
-NFR-008. CPU request: 2 cores; CPU limit: 4 cores.
+NFR-008. CPU request: 500m; CPU limit: 4 cores.
 NFR-009. Contexto inicial: 4096 tokens.
 NFR-010. Paralelismo: 1.
 NFR-011. El sidecar Envoy de Istio debe estar deshabilitado para ahorrar RAM, salvo necesidad explícita de mesh interno.
@@ -172,7 +174,7 @@ Nota: para producción, LLAMA_CPP_REF debe fijarse a un tag o commit validado; n
 #!/bin/sh
 set -eu
 
-MODEL="${MODEL_PATH:-/models/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
+MODEL="${MODEL_PATH:-/models/qwen2.5-coder-3b-instruct-q4_k_m.gguf}"
 
 if [ ! -f "${MODEL}" ]; then
   echo "ERROR: GGUF model not found: ${MODEL}"
@@ -234,7 +236,7 @@ metadata:
   name: pi-llm-config
   namespace: local-ai
 data:
-  MODEL_PATH: /models/Qwen3.5-2B-UD-Q4_K_XL.gguf
+  MODEL_PATH: /models/qwen2.5-coder-3b-instruct-q4_k_m.gguf
   CTX_SIZE: "4096"
   THREADS: "4"
   THREADS_BATCH: "4"
@@ -259,8 +261,8 @@ initContainers:
     args:
       - |
         set -eu
-        FILE="${MODEL_PATH:-/models/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
-        URL="${MODEL_URL:-https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
+        FILE="${MODEL_PATH:-/models/qwen2.5-coder-3b-instruct-q4_k_m.gguf}"
+        URL="${MODEL_URL:-https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct-GGUF/resolve/main/qwen2.5-coder-3b-instruct-q4_k_m.gguf}"
         if [ -s "$FILE" ]; then
           echo "Model already exists: $FILE"
           exit 0
@@ -322,8 +324,8 @@ spec:
           args:
             - |
               set -eu
-              FILE="${MODEL_PATH:-/models/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
-              URL="${MODEL_URL:-https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
+              FILE="${MODEL_PATH:-/models/qwen2.5-coder-3b-instruct-q4_k_m.gguf}"
+              URL="${MODEL_URL:-https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct-GGUF/resolve/main/qwen2.5-coder-3b-instruct-q4_k_m.gguf}"
               if [ -s "$FILE" ]; then
                 echo "Model already exists: $FILE"
                 exit 0
@@ -442,7 +444,7 @@ spec:
         name: http
         protocol: HTTP
       hosts:
-        - llm.kdvops.local
+        - llm.kdvops.com
 ```
 
 
@@ -456,7 +458,7 @@ metadata:
   namespace: local-ai
 spec:
   hosts:
-    - llm.kdvops.local
+    - llm.kdvops.com
   gateways:
     - pi-llm
   http:
@@ -478,7 +480,6 @@ resources:
   - namespace.yaml
   - pvc.yaml
   - configmap.yaml
-  - model-download-job.yaml
   - deployment.yaml
   - service.yaml
   - gateway.yaml
@@ -497,7 +498,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/kdvops/pi-llm-server.git
+    repoURL: https://github.com/kdvops/LLM.git
     targetRevision: main
     path: kubernetes/base
   destination:
@@ -516,8 +517,8 @@ spec:
 
 Wave 0: Namespace
 Wave 1: PVC
-Wave 2: Job de descarga del modelo
-Wave 3: Deployment
+Wave 2: Sin recursos activos; el Job legado está excluido de Kustomize
+Wave 3: Deployment con initContainer de descarga
 Wave 4: Service, Gateway y VirtualService
 
 El objetivo es que el modelo esté disponible antes de iniciar llama-server.
@@ -578,7 +579,7 @@ Service = ClusterIP
 PVC = Longhorn RWO.
 
 SDD-007 — Istio
-Given el host llm.kdvops.local
+Given el host llm.kdvops.com
 When llega una petición al Gateway
 Then debe enrutar a pi-llm:8080.
 
@@ -598,7 +599,7 @@ Then no debe perderse el modelo persistido.
 Comparar, si están disponibles para el mismo modelo:
 - Q3_K_M
 - Q4_K_M
-- UD-Q4_K_XL
+- Q4_K_M
 - Q5_K_M
 
 Medir:
@@ -618,15 +619,15 @@ usar la cuantización con mejor equilibrio entre calidad, memoria y throughput s
 
 ## 23. Configuración baseline v1.0
 
-Modelo: Qwen3.5-2B
+Modelo: Qwen2.5-Coder-3B-Instruct
 Formato: GGUF
-Quant: UD-Q4_K_XL
+Quant: Q4_K_M
 Runtime: llama.cpp
 Arquitectura: linux/arm64
 Contexto: 4096
 Threads: 4
 Parallel: 1
-Request CPU: 2
+Request CPU: 500m
 Limit CPU: 4
 Request RAM: 1800Mi
 Limit RAM: 3500Mi

@@ -33,8 +33,8 @@ spec:
           args:
             - |
               set -eu
-              FILE="${MODEL_PATH:-/models/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
-              URL="${MODEL_URL:-https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
+              FILE="${MODEL_PATH:-/models/qwen2.5-coder-3b-instruct-q4_k_m.gguf}"
+              URL="${MODEL_URL:-https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct-GGUF/resolve/main/qwen2.5-coder-3b-instruct-q4_k_m.gguf}"
               if [ -s "$FILE" ]; then
                 echo "Model already exists: $FILE"
                 exit 0
@@ -71,7 +71,7 @@ spec:
           args:
             - |
               exec /app/llama-server \
-                --model "${MODEL_PATH:-/models/Qwen3.5-2B-UD-Q4_K_XL.gguf}" \
+                --model "${MODEL_PATH:-/models/qwen2.5-coder-3b-instruct-q4_k_m.gguf}" \
                 --host 0.0.0.0 \
                 --port 8080 \
                 --ctx-size "${CTX_SIZE:-4096}" \

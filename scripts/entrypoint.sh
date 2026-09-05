@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-MODEL="${MODEL_PATH:-/models/Qwen3.5-2B-UD-Q4_K_XL.gguf}"
+MODEL="${MODEL_PATH:-/models/qwen2.5-coder-3b-instruct-q4_k_m.gguf}"
 
 if [ ! -s "${MODEL}" ]; then
   echo "ERROR: GGUF model not found: ${MODEL}" >&2
