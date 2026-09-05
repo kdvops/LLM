@@ -14,7 +14,7 @@ spec:
   http:
     - route:
         - destination:
-            host: pi-llm.local-ai.svc.cluster.local
+            host: keda-add-ons-http-interceptor-proxy.keda.svc.cluster.local
             port:
               number: 8080
       timeout: 300s

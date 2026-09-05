@@ -1,0 +1,37 @@
+apiVersion: http.keda.sh/v1beta1
+kind: InterceptorRoute
+metadata:
+  name: pi-llm
+  namespace: local-ai
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  target:
+    service: pi-llm
+    port: 8080
+  rules:
+    - hosts:
+        - llm.kdvops.com
+  scalingMetric:
+    concurrency:
+      targetValue: 1
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: pi-llm
+  namespace: local-ai
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  scaleTargetRef:
+    name: pi-llm
+    kind: Deployment
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  cooldownPeriod: 600
+  triggers:
+    - type: external-push
+      metadata:
+        scalerAddress: keda-add-ons-http-external-scaler.keda:9090
+        interceptorRoute: pi-llm

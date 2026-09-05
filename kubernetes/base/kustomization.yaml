@@ -8,3 +8,4 @@ resources:
   - service.yaml
   - gateway.yaml
   - virtualservice.yaml
+  - keda-http.yaml
